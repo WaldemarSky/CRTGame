@@ -1,10 +1,11 @@
 program startgame;
-uses crt;
+uses crt, dateutils, sysutils;
 
 const
     PointCharacterCount = 7;
-    RigthScreenBorder = 0;
+    FieldLvShift = -3;
     DelayDuration = 70;
+    DurStair = 2;
     EndDelay = 5000;
     GaOvPoints = 102;
     ScrWidthShift = -1;
@@ -26,15 +27,23 @@ type
         x, y: integer;
     end;
 
-    itemptr = ^item;
+    itemptr = ^itemlevel;
+    itemstptr = ^itemStair;
 
-    item = record
+    itemlevel = record
         data: chain;
         next: itemptr;
     end;
 
+    itemStair = record
+        data: chain;
+        duration: smallint;
+        next: itemstptr;
+    end;
+
 var
-    first: itemptr = nil;
+    LevelPtr: itemptr = nil;
+    StPtFirst: itemstptr = nil; 
 
 procedure GetKey(var code: integer);
 var
@@ -74,21 +83,43 @@ begin
     write(symb)
 end;
 
-procedure BuildLevel(x, y, size: integer; symbol: char);
+procedure BuildLevel(x, y, size: integer);
 var
     i: integer;
     GroundPoint: chain;
-    tmp:itemptr = nil;
+    tmp: itemptr = nil;
 begin
     for i := x to (x + size - 1) do begin
         GroundPoint.x := i;
         GroundPoint.y := y;
         new(tmp);
         tmp^.data := GroundPoint;
-        tmp^.next := first;
-        first := tmp;
-        ShowSymbol(symbol, GroundPoint.x, GroundPoint.y)
+        tmp^.next := LevelPtr;
+        LevelPtr := tmp;
+        ShowSymbol('@', GroundPoint.x, GroundPoint.y)
+    end;
+    GotoXY(1, 1)
+end;
+
+procedure BuildStair(x, y: integer);
+var
+    StairPoint: chain;
+begin
+    StairPoint.x := x;
+    StairPoint.y := y;
+    if StPtFirst = nil then begin
+        new(StPtFirst);
+        StPtLast := StPtFirst
     end
+    else begin
+        new(StPtLast^.next);
+        StPtlast := StPtlast^.next
+    end;
+    StPtlast^.data := StairPoint;
+    StPtlast^.duration := DurStair;
+    StPtlast^.next := nil;
+    ShowSymbol('=', StairPoint.x, StairPoint.y);
+    GotoXY(1, 1)
 end;
 
 procedure InitBorder;
@@ -96,7 +127,7 @@ var
     i: integer;
     levelcount, levelsize, levelseed, levelx, levely, levelcorr: integer;
 begin
-    BuildLevel(1, ScreenHeight, (ScreenHeight + ScrHeightShift), '@'); 
+    BuildLevel(1, ScreenHeight, (ScreenHeight + ScrHeightShift)); 
 
     levelcount := random(7-4+1) + 4;
     levelseed := (ScreenHeight + ScrHeightShift) div levelcount;
@@ -112,7 +143,7 @@ begin
             break;
         if (i mod 2) = 0 then
             levelx := (ScreenWidth + ScrWidthShift) - (levelsize + levelx) + 1;
-        BuildLevel(levelx, levely + levelcorr, levelsize, '@');
+        BuildLevel(levelx, levely + levelcorr, levelsize);
     end;
     GotoXY(1, 1)
 end;
@@ -138,10 +169,11 @@ end;
 procedure RewriteField(X, Y: integer; ch: character);
 var
     tmp: itemptr;
+    tmps: itemstptr; 
     i: integer;
     charFlag: boolean;
 begin
-    tmp := first;
+    tmp := LevelPtr;
     while true do begin
         charFlag := false;
         if (tmp^.data.y <= (Y-ScrHeightShift+2)) and
@@ -150,7 +182,7 @@ begin
                 if (ch.ArrayPos[i].X + X = tmp^.data.x) and
                    (ch.ArrayPos[i].Y + Y = tmp^.data.y) then begin
                    charFlag := true;
-                   break;
+                   break
                 end
             end;
             if not charFlag then begin
@@ -161,6 +193,46 @@ begin
         tmp := tmp^.next;
         if tmp = nil then
             break
+    end;
+    tmps := StPtFirst;
+    charFlag := false;
+    while true do begin
+        if tmps = nil then
+            break;
+        for i := 1 to PointCharacterCount do begin  
+            if (ch.ArrayPos[i].X + X = tmps^.data.x) and
+               (ch.ArrayPos[i].Y + Y = tmps^.data.y) then begin
+               charFlag := true;
+               break
+            end
+        end;
+        if not charFlag then begin
+            GotoXY(tmps^.data.x, tmps^.data.y);
+            ShowSymbol('=', tmps^.data.x, tmps^.data.y);
+        end;
+        tmps := tmps^.next
+    end;
+    GotoXY(1,1)
+end;
+
+procedure RewriteAllField;
+var
+    tmp: itemptr;
+    tmps: itemstptr; 
+begin
+    tmp := LevelPtr;
+    while tmp <> nil do begin
+        GotoXY(tmp^.data.x, tmp^.data.y);
+        ShowSymbol('@',tmp^.data.x, tmp^.data.y);
+        tmp := tmp^.next;
+    end;
+    tmps := StPtFirst;
+    while true do begin
+        if tmps = nil then
+            break;
+        GotoXY(tmps^.data.x, tmps^.data.y);
+        ShowSymbol('=', tmps^.data.x, tmps^.data.y);
+        tmps := tmps^.next
     end;
     GotoXY(1,1)
 end;
@@ -187,13 +259,14 @@ label
     quit;
 var
     tmp: itemptr;
+    tmps: itemstptr; 
     pointleg: chain;
     i: integer;
 begin
     for i := 1 to 3 do begin
         pointleg.x := x + i;
         pointleg.y := y + 5;
-        tmp := first;
+        tmp := LevelPtr;
         while true do begin
             if (tmp^.data.x = pointleg.x) and (tmp^.data.y = pointleg.y) then begin
                 CheckGround := true;
@@ -204,6 +277,19 @@ begin
             else
                 tmp := tmp^.next
         end;
+        if StPtFirst <> nil then begin
+            tmps := StPtFirst;
+            while true do begin
+                if (tmps^.data.x = pointleg.x) and (tmps^.data.y = pointleg.y) then begin
+                    CheckGround := true;
+                    goto quit
+                end;
+                if tmps^.next = nil then
+                    break
+                else
+                    tmps := tmps^.next
+            end
+        end
     end;
     MoveChar(x, y, ch, 0, 1);
     delay(DelayDuration);
@@ -245,9 +331,41 @@ var
     i: integer;
     g: integer;
     c: SmallInt;
+    pp: ^itemptr;
+    tmp: itemptr;
+    pps: ^itemstptr;
+    tmps: itemstptr;
 begin
     for i := 1 to 5 do begin
-        MoveChar(x, y, ch, 0, -1);
+        if Y <= (ScreenHeight div 2 + FieldLvShift) then begin
+            pp := @LevelPtr;
+            while pp^ <> nil do begin
+                ShowSymbol(' ', pp^^.data.x, pp^^.data.y);
+                pp^^.data.y := pp^^.data.y + 1;
+                if pp^^.data.y > ScreenHeight then begin 
+                    tmp := pp^;
+                    pp^ := pp^^.next;
+                    dispose(tmp)
+                end
+                else
+                    pp := @(pp^^.next)
+            end;
+            pps := @StPtFirst;
+            while pps^ <> nil do begin
+                ShowSymbol(' ', pps^^.data.x, pps^^.data.y);
+                pps^^.data.y := pps^^.data.y + 1;
+                if pp^^.data.y > ScreenHeight then begin 
+                    tmps := pps^;
+                    pps^ := pps^^.next;
+                    dispose(tmps)
+                end
+                else
+                    pps := @(pps^^.next)
+            end;
+            RewriteAllField
+        end
+        else
+            MoveChar(X, Y, ch, 0, -1);
         for g:= 1 to 2 do begin
             if KeyPressed then begin
                 GetKey(c);
@@ -274,49 +392,82 @@ begin
     end
 end;
 
-procedure SetStair(x, y: integer; side: char);
+procedure SetStair(var x, y: integer; ch: character; side: char);
 var
     stairX, stairY: integer;
 begin
     stairY := y + 1;
     if side = left then
-        stairX := x - 8
+        stairX := x - 7
     else if side = rigth then
         stairX := x + 11;
     if (StairX < 2) or (StairX > (ScreenWidth + ScrWidthShift - 8)) then
         exit;
-    BuildLevel(StairX, StairY, 2, '=')
+    BuildStair(StairX, StairY);
+end;
+
+procedure RemoveStairs;
+var
+    tmps: itemstptr;
+begin
+    tmps := StPtFirst;
+    while tmps <> nil do begin
+        tmps^.duration := tmps^.duration - 1;
+        tmps := tmps^.next
+    end;
+    if (StPtFirst <> nil) and (StPtFirst^.duration = 0) then begin
+        tmps := StPtFirst;
+        StPtFirst := StPtFirst^.next;
+        ShowSymbol(' ', tmps^.data.x, tmps^.data.y);
+        GotoXY(1,1);
+        dispose(tmps)
+    end
+end;
+
+procedure OneStep(var x, y: integer; ch: character);
+var
+    c: SmallInt;
+begin
+    CheckGround(x, y, ch);
+    if y = (ScreenHeight + ScrHeightShift) then
+        GameOver;
+    if KeyPressed then begin
+        GetKey(c);
+        case c of
+        -75: MoveChar(x, y, ch, -1, 0);
+        -77: MoveChar(x, y, ch, 1, 0);
+        113: SetStair(x, y, ch, left);
+        119: SetStair(x, y, ch, rigth);
+        32: DoJump(x, y, ch);
+        27: begin
+            clrscr;
+            halt
+        end
+        end
+    end
 end;
 
 var
     X, Y: integer;
+    StartSec, LastSec: int64;
     ch: character;
-    c: SmallInt;
-
 begin
+    assign(stderr, 'log.txt');
+    rewrite(stderr);
     randomize;
     clrscr;
     InitChar(ch);
     InitBorder;
     X := 0;
     Y := (ScreenHeight + ScrHeightShift - 1);
-    // Y := 1;
     ShowChar(X, Y, ch);
+    StartSec := DateTimeToUnix(Now());
     while true do begin
-        CheckGround(X, Y, ch);
-        if Y = (ScreenHeight + ScrHeightShift) then
-            GameOver;
-        if KeyPressed then begin
-            GetKey(c);
-            case c of
-            -75: MoveChar(X, Y, ch, -1, 0);
-            -77: MoveChar(X, Y, ch, 1, 0);
-            113: SetStair(X, Y, left);
-            119: SetStair(X, Y, rigth);
-            32: DoJump(X, Y, ch);
-            27: break;
-            end
+        OneStep(x, y, ch);
+        LastSec := DateTimeToUnix(Now());
+        if LastSec <> StartSec then begin
+            StartSec := LastSec;
+            RemoveStairs
         end
-    end;
-    clrscr
+    end
 end.
