@@ -12,6 +12,7 @@ const
     ScrHeightShift = -4;
     left = 'l';
     rigth = 'r';
+    ChanceForLevel = 0.20;
 
 type
     Point = record
@@ -45,6 +46,7 @@ var
     LevelPtr: itemptr = nil;
     StPtFirst: itemstptr = nil; 
     StPtLast: itemstptr = nil; 
+    score: integer = 0;
 
 procedure GetKey(var code: integer);
 var
@@ -145,6 +147,28 @@ begin
         if (i mod 2) = 0 then
             levelx := (ScreenWidth + ScrWidthShift) - (levelsize + levelx) + 1;
         BuildLevel(levelx, levely + levelcorr, levelsize);
+    end;
+    GotoXY(1, 1)
+end;
+
+procedure GenNewLevel;
+var
+    LevelChance: real;
+    levelsize, levelx, levely: integer;
+    i: SmallInt;
+begin
+    score := score + 1;
+    LevelChance := random;
+    i := random(2);
+    if LevelChance < ChanceForLevel then begin
+        levelx := random(ScreenWidth + ScrWidthShift) + 1;
+        levely := 1; 
+        levelsize := random(40-15 +1) + 15;
+        if (levelsize + levelx) > (ScreenWidth + ScrWidthShift) then
+            levelsize := (ScreenWidth + ScrWidthShift) - levelx;
+        if i = 1 then
+            levelx := (ScreenWidth + ScrWidthShift) - (levelsize + levelx) + 1;
+        BuildLevel(levelx, levely, levelsize);
     end;
     GotoXY(1, 1)
 end;
@@ -321,6 +345,8 @@ begin
         ShowSymbol('#', CenX + x, CenY + y);
         gap := gap + 1
     end;
+    GotoXY(CenX - 7, CenY + 3);
+    writeln('Total score: ', score);
     GotoXY(1, 1);
     delay(EndDelay);
     clrscr;
@@ -339,6 +365,8 @@ var
 begin
     for i := 1 to 5 do begin
         if Y <= (ScreenHeight div 2 + FieldLvShift) then begin
+            GotoXY(2, 1);
+            writeln('score: ', score);
             pp := @LevelPtr;
             while pp^ <> nil do begin
                 ShowSymbol(' ', pp^^.data.x, pp^^.data.y);
@@ -363,7 +391,8 @@ begin
                 else
                     pps := @(pps^^.next)
             end;
-            RewriteAllField
+            RewriteAllField;
+            GenNewLevel
         end
         else
             MoveChar(X, Y, ch, 0, -1);
@@ -464,6 +493,8 @@ begin
     X := 0;
     Y := (ScreenHeight + ScrHeightShift - 1);
     ShowChar(X, Y, ch);
+    GotoXY(2, 1);
+    writeln('score: ', score);
     StartSec := DateTimeToUnix(Now());
     while true do begin
         OneStep(x, y, ch);
