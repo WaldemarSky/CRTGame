@@ -44,6 +44,7 @@ type
 var
     LevelPtr: itemptr = nil;
     StPtFirst: itemstptr = nil; 
+    StPtLast: itemstptr = nil; 
 
 procedure GetKey(var code: integer);
 var
@@ -354,7 +355,7 @@ begin
             while pps^ <> nil do begin
                 ShowSymbol(' ', pps^^.data.x, pps^^.data.y);
                 pps^^.data.y := pps^^.data.y + 1;
-                if pp^^.data.y > ScreenHeight then begin 
+                if pps^^.data.y > ScreenHeight then begin 
                     tmps := pps^;
                     pps^ := pps^^.next;
                     dispose(tmps)
@@ -415,9 +416,11 @@ begin
         tmps^.duration := tmps^.duration - 1;
         tmps := tmps^.next
     end;
-    if (StPtFirst <> nil) and (StPtFirst^.duration = 0) then begin
+    if (StPtFirst <> nil) and (StPtFirst^.duration <= 0) then begin
         tmps := StPtFirst;
         StPtFirst := StPtFirst^.next;
+        if StPtFirst = nil then
+            StPtLast := nil;
         ShowSymbol(' ', tmps^.data.x, tmps^.data.y);
         GotoXY(1,1);
         dispose(tmps)
