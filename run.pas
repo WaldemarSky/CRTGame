@@ -80,8 +80,10 @@ begin
     ch.ArrayPos[7].Y := 4; 
 end;
 
-procedure ShowSymbol (symb: char; x, y: integer);
+procedure ShowSymbol (symb: char; bg, fg: word; x, y: integer);
 begin
+    TextBackground(bg);
+    TextColor(fg);
     GotoXY(x, y);
     write(symb)
 end;
@@ -99,7 +101,7 @@ begin
         tmp^.data := GroundPoint;
         tmp^.next := LevelPtr;
         LevelPtr := tmp;
-        ShowSymbol('@', GroundPoint.x, GroundPoint.y)
+        ShowSymbol('@', Green, Black, GroundPoint.x, GroundPoint.y)
     end;
     GotoXY(1, 1)
 end;
@@ -121,7 +123,7 @@ begin
     StPtlast^.data := StairPoint;
     StPtlast^.duration := DurStair;
     StPtlast^.next := nil;
-    ShowSymbol('=', StairPoint.x, StairPoint.y);
+    ShowSymbol('=', LightGray, Black, StairPoint.x, StairPoint.y);
     GotoXY(1, 1)
 end;
 
@@ -178,7 +180,7 @@ var
     i: integer;
 begin
     for i := 1 to PointCharacterCount do 
-        ShowSymbol('#', X + ch.ArrayPos[i].X, Y + ch.ArrayPos[i].Y);
+        ShowSymbol('#', Blue, Red, X + ch.ArrayPos[i].X, Y + ch.ArrayPos[i].Y);
     GotoXY(1, 1)
 end;
 
@@ -187,7 +189,7 @@ var
     i: integer;
 begin
     for i := 1 to PointCharacterCount do 
-        ShowSymbol(' ', X + ch.ArrayPos[i].X, Y + ch.ArrayPos[i].Y);
+        ShowSymbol(' ', Black, Black, X + ch.ArrayPos[i].X, Y + ch.ArrayPos[i].Y);
     GotoXY(1, 1)
 end;
 
@@ -212,7 +214,7 @@ begin
             end;
             if not charFlag then begin
                 GotoXY(tmp^.data.x, tmp^.data.y);
-                ShowSymbol('@',tmp^.data.x, tmp^.data.y);
+                ShowSymbol('@', Green, Black, tmp^.data.x, tmp^.data.y);
             end
         end;
         tmp := tmp^.next;
@@ -233,7 +235,7 @@ begin
         end;
         if not charFlag then begin
             GotoXY(tmps^.data.x, tmps^.data.y);
-            ShowSymbol('=', tmps^.data.x, tmps^.data.y);
+            ShowSymbol('=', LightGray, Black, tmps^.data.x, tmps^.data.y);
         end;
         tmps := tmps^.next
     end;
@@ -248,7 +250,7 @@ begin
     tmp := LevelPtr;
     while tmp <> nil do begin
         GotoXY(tmp^.data.x, tmp^.data.y);
-        ShowSymbol('@',tmp^.data.x, tmp^.data.y);
+        ShowSymbol('@', Green, Black, tmp^.data.x, tmp^.data.y);
         tmp := tmp^.next;
     end;
     tmps := StPtFirst;
@@ -256,7 +258,7 @@ begin
         if tmps = nil then
             break;
         GotoXY(tmps^.data.x, tmps^.data.y);
-        ShowSymbol('=', tmps^.data.x, tmps^.data.y);
+        ShowSymbol('=', LightGray, Black, tmps^.data.x, tmps^.data.y);
         tmps := tmps^.next
     end;
     GotoXY(1,1)
@@ -342,7 +344,7 @@ begin
     for i := 1 to GaOvPoints do begin
         x := arrOver[i + gap];
         y := arrOver[i + gap + 1];
-        ShowSymbol('#', CenX + x, CenY + y);
+        ShowSymbol('#', Red, LightBlue, CenX + x, CenY + y);
         gap := gap + 1
     end;
     GotoXY(CenX - 7, CenY + 3);
@@ -350,6 +352,7 @@ begin
     GotoXY(1, 1);
     delay(EndDelay);
     clrscr;
+    write(#27'[0m');
     halt
 end;
 
@@ -366,10 +369,11 @@ begin
     for i := 1 to 5 do begin
         if Y <= (ScreenHeight div 2 + FieldLvShift) then begin
             GotoXY(2, 1);
+            TextBackground(Black);
             writeln('score: ', score);
             pp := @LevelPtr;
             while pp^ <> nil do begin
-                ShowSymbol(' ', pp^^.data.x, pp^^.data.y);
+                ShowSymbol(' ', Black, Black, pp^^.data.x, pp^^.data.y);
                 pp^^.data.y := pp^^.data.y + 1;
                 if pp^^.data.y > ScreenHeight then begin 
                     tmp := pp^;
@@ -381,7 +385,7 @@ begin
             end;
             pps := @StPtFirst;
             while pps^ <> nil do begin
-                ShowSymbol(' ', pps^^.data.x, pps^^.data.y);
+                ShowSymbol(' ', Black, Black, pps^^.data.x, pps^^.data.y);
                 pps^^.data.y := pps^^.data.y + 1;
                 if pps^^.data.y > ScreenHeight then begin 
                     tmps := pps^;
@@ -450,7 +454,7 @@ begin
         StPtFirst := StPtFirst^.next;
         if StPtFirst = nil then
             StPtLast := nil;
-        ShowSymbol(' ', tmps^.data.x, tmps^.data.y);
+        ShowSymbol(' ', Black, Black, tmps^.data.x, tmps^.data.y);
         GotoXY(1,1);
         dispose(tmps)
     end
@@ -473,6 +477,7 @@ begin
         32: DoJump(x, y, ch);
         27: begin
             clrscr;
+            write(#27'[0m');
             halt
         end
         end
@@ -494,6 +499,7 @@ begin
     Y := (ScreenHeight + ScrHeightShift - 1);
     ShowChar(X, Y, ch);
     GotoXY(2, 1);
+    TextBackground(Black);
     writeln('score: ', score);
     StartSec := DateTimeToUnix(Now());
     while true do begin
